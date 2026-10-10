@@ -17,6 +17,26 @@ export type ApiProfile = ApiUser & { phone: string; jobTitle: string; avatar: st
 export type ProfileUpdate = Partial<Pick<ApiProfile, 'fullName' | 'email' | 'phone' | 'jobTitle' | 'avatar'>>;
 export type ApiWorker = { id: string; name: string; email?: string; role?: Role; status?: WorkerStatus; created_at?: string; password_reset_requested_at?: string | null };
 
+export type WorkloadLevel = 'light' | 'busy' | 'overloaded';
+// open = works assigned to the worker that are not Done; the thresholds are set on the server.
+export type Workload = { open: number; level: WorkloadLevel; busy_at: number; overloaded_at: number };
+export type RecommendationBadge = 'recommended' | 'skill_mismatch' | 'high_workload' | 'away' | 'offline';
+export type WorkerRecommendation = {
+  worker_id: string;
+  name: string;
+  score: number;
+  skill_match: number;
+  open_works: number;
+  status: WorkerStatus;
+  reason: string;
+  skills: string[];
+  matched_skills: string[];
+  workload: Workload;
+  badges: RecommendationBadge[];
+};
+// source says where required_skills came from: the AI, the keyword fallback, or 'none' when no text was sent.
+export type RecommendationResult = { required_skills: string[]; source: 'ai' | 'keywords' | 'none'; recommendations: WorkerRecommendation[] };
+
 export type SubtaskDetail = {
   id: string;
   description: string;
@@ -133,6 +153,11 @@ export async function getWorkers() {
 
 export async function updateWorkerStatus(workerId: string, status: WorkerStatus) {
   return request<{ id: string; status: WorkerStatus }>(`/workers/${workerId}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
+// Boss only: every worker ranked for the described work, best first. Empty text ranks by workload alone.
+export async function recommendWorkers(text: string) {
+  return request<RecommendationResult>('/work/recommend', { method: 'POST', body: JSON.stringify({ text }) });
 }
 
 type WorkRow = {
